@@ -1,0 +1,238 @@
+<style>
+.filter-section {
+    margin-top: 32px;
+    padding-top: 32px;
+    border-top: 1px solid #E5E7EB;
+}
+
+.filter-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.filter-label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 500;
+    font-size: 13px;
+    color: #374151;
+}
+
+.collapsible {
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0;
+}
+
+.collapsible:hover {
+    color: #6366F1;
+}
+
+.chevron {
+    transition: transform 0.2s;
+}
+
+.chevron.open {
+    transform: rotate(180deg);
+}
+
+.filter-subsection {
+    margin-top: 16px;
+    padding: 16px;
+    background: #F9FAFB;
+    border-radius: 8px;
+    border: 1px solid #E5E7EB;
+}
+
+.filter-subsection h4 {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: #374151;
+}
+</style>
+
+<div class="container" style="max-width: 700px; padding-top: 60px;">
+    <div style="text-align: center; margin-bottom: 48px;">
+        <h1>Find Your Next Role</h1>
+        <p style="color: #6B7280; font-size: 16px;">Search with advanced filters</p>
+    </div>
+
+    <div class="card">
+        <form action="/search" method="GET">
+            <!-- Basic Search -->
+            <div style="margin-bottom: 20px;">
+                <label class="filter-label">Job Title or Keywords</label>
+                <input type="text" name="q" placeholder="Software Engineer, Product Designer..." required>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <label class="filter-label">Location</label>
+                <input type="text" name="l" placeholder="New York, California, Remote...">
+            </div>
+
+            <!-- Advanced Filters -->
+            <div class="filter-section">
+                <div class="collapsible" onclick="toggleFilters()">
+                    <h3 style="font-size: 15px; margin: 0;">Advanced Filters</h3>
+                    <svg class="chevron" id="chevron" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M6 9l6 6 6-6"/>
+                    </svg>
+                </div>
+                
+                <div id="advanced-filters" style="display: none;">
+                    <div class="filter-grid" style="margin-top: 16px;">
+                        <!-- Job Type -->
+                        <div>
+                            <label class="filter-label">Job Type</label>
+                            <select name="employment_type" id="jobTypeFilter" style="width: 100%;" onchange="toggleInternshipFilters()">
+                                <option value="">All Types</option>
+                                <option value="FULLTIME">Full-time</option>
+                                <option value="INTERN">Internship</option>
+                                <option value="PARTTIME">Part-time</option>
+                                <option value="CONTRACTOR">Contract</option>
+                            </select>
+                        </div>
+
+                        <!-- Work Location -->
+                        <div>
+                            <label class="filter-label">Work Location</label>
+                            <select name="remote_jobs_only" style="width: 100%;">
+                                <option value="">All Locations</option>
+                                <option value="true">Remote Only</option>
+                                <option value="false">On-site/Hybrid</option>
+                            </select>
+                        </div>
+
+                        <!-- Experience Level -->
+                        <div>
+                            <label class="filter-label">Experience Level</label>
+                            <select name="job_requirements" style="width: 100%;">
+                                <option value="">All Levels</option>
+                                <option value="no_experience">Entry Level</option>
+                                <option value="under_3_years_experience">Under 3 Years</option>
+                                <option value="more_than_3_years_experience">3+ Years</option>
+                            </select>
+                        </div>
+
+                        <!-- Date Posted -->
+                        <div>
+                            <label class="filter-label">Date Posted</label>
+                            <select name="date_posted" style="width: 100%;">
+                                <option value="all">All Time</option>
+                                <option value="today">Today</option>
+                                <option value="3days">Past 3 Days</option>
+                                <option value="week">Past Week</option>
+                                <option value="month">Past Month</option>
+                            </select>
+                        </div>
+
+                        <!-- US Authorization -->
+                        <div>
+                            <label class="filter-label">US Work Authorization</label>
+                            <select name="us_auth" style="width: 100%;">
+                                <option value="">All</option>
+                                <option value="citizen">US Citizen/Green Card</option>
+                                <option value="opt">OPT</option>
+                                <option value="cpt">CPT</option>
+                                <option value="sponsorship">Requires Sponsorship</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Internship-Specific Filters -->
+                    <div id="internship-filters" class="filter-subsection" style="display: none;">
+                        <h4>Internship Filters</h4>
+                        <div class="filter-grid">
+                            <div>
+                                <label class="filter-label">Internship Type</label>
+                                <select name="internship_type" style="width: 100%;">
+                                    <option value="">All Terms</option>
+                                    <option value="summer">Summer</option>
+                                    <option value="fall">Fall</option>
+                                    <option value="winter">Winter</option>
+                                    <option value="spring">Spring</option>
+                                    <option value="year-round">Year-round</option>
+                                    <option value="co-op">Co-op</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="filter-label">Compensation</label>
+                                <select name="compensation" style="width: 100%;">
+                                    <option value="">All</option>
+                                    <option value="paid">Paid Only</option>
+                                    <option value="unpaid">Unpaid</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 16px; padding: 12px; background: #EEF2FF; border-radius: 8px; font-size: 13px; color: #4338CA;">
+                        <strong>Tip:</strong> Select "Internship" as Job Type to see internship-specific filters above.
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" class="btn" style="width: 100%; margin-top: 24px;">
+    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink: 0;">
+        <circle cx="9" cy="9" r="6"/>
+        <path d="M13 13l4 4"/>
+    </svg>
+    Search Jobs
+</button>
+        </form>
+    </div>
+    
+    <div style="text-align: center; margin-top: 32px; color: #9CA3AF; font-size: 13px;">
+        <p>Popular: Remote Developer · Summer Internship · Entry Level · Data Analyst</p>
+    </div>
+</div>
+
+<script>
+function toggleFilters() {
+    const filters = document.getElementById('advanced-filters');
+    const chevron = document.getElementById('chevron');
+    
+    if (filters.style.display === 'none') {
+        filters.style.display = 'block';
+        chevron.classList.add('open');
+    } else {
+        filters.style.display = 'none';
+        chevron.classList.remove('open');
+    }
+}
+
+function toggleInternshipFilters() {
+    const jobType = document.getElementById('jobTypeFilter').value;
+    const internshipFilters = document.getElementById('internship-filters');
+    
+    if (jobType === 'INTERN') {
+        internshipFilters.style.display = 'block';
+    } else {
+        internshipFilters.style.display = 'none';
+    }
+}
+
+// If URL has filters, open advanced section
+window.addEventListener('DOMContentLoaded', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const hasAdvancedFilters = urlParams.has('employment_type') || 
+                               urlParams.has('remote_jobs_only') || 
+                               urlParams.has('job_requirements');
+    
+    if (hasAdvancedFilters) {
+        toggleFilters();
+    }
+    
+    // Show internship filters if internship is selected
+    if (urlParams.get('employment_type') === 'INTERN') {
+        toggleInternshipFilters();
+    }
+});
+</script>

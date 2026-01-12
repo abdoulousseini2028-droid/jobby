@@ -1,0 +1,19 @@
+<div class="mdl-grid portfolio-max-width">
+{{#each jobs}}
+  <div class="mdl-cell mdl-card mdl-shadow--4dp portfolio-card">
+    <div class="mdl-card__media"></div>
+    <div class="mdl-card__title">
+      <h2 class="mdl-card__title-text">{{this.job_title}}</h2>
+    </div>
+    <div class="mdl-card__supporting-text">
+      <p><strong>Company:</strong> {{this.employer_name}}</p>
+      <p><strong>Location:</strong> {{this.job_city}}, {{this.job_state}}</p>
+      <p>{{this.job_description}}</p>
+    </div>
+    <div class="mdl-card__actions mdl-card--border">
+      <a class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect mdl-button--accent" 
+         href="{{this.job_apply_link}}" target="_blank">Apply</a>
+    </div>
+  </div>
+{{/each}}
+</div>

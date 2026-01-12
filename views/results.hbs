@@ -1,0 +1,387 @@
+<style>
+.job-card {
+    background: white;
+    border: 1px solid #E5E7EB;
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 16px;
+    transition: all 0.2s;
+}
+
+.job-card:hover {
+    border-color: #D1D5DB;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+}
+
+.job-header {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.company-logo {
+    width: 48px;
+    height: 48px;
+    object-fit: contain;
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    background: white;
+}
+
+.job-meta {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    color: #6B7280;
+    font-size: 13px;
+    margin: 12px 0;
+}
+
+.job-meta span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.job-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+}
+
+.search-bar {
+    background: white;
+    border-bottom: 1px solid #E5E7EB;
+    padding: 24px 0;
+    margin-bottom: 24px;
+}
+
+.badge {
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.badge-remote {
+    background: #D1FAE5;
+    color: #065F46;
+}
+</style>
+
+<div class="search-bar">
+    <div class="container">
+        <h2 style="margin-bottom: 16px;">Results for "{{query}}" in {{location}}</h2>
+        
+        <form action="/search" method="GET" style="margin-bottom: 16px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 12px; margin-bottom: 12px;">
+                <input type="text" name="q" value="{{query}}" placeholder="Job title" required>
+                <input type="text" name="l" value="{{location}}" placeholder="Location">
+                <button type="submit" class="btn">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="7" cy="7" r="5"/>
+                        <path d="M11 11l3 3"/>
+                    </svg>
+                    Search
+                </button>
+            </div>
+            
+            <!-- Collapsible Filters -->
+            <details {{#if activeFilters.employment_type}}open{{/if}}>
+                <summary style="cursor: pointer; font-size: 14px; color: #6B7280; margin-bottom: 12px; font-weight: 500;">
+                    Filters {{#if activeFilters.employment_type}}(Active){{/if}}
+                </summary>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; padding: 12px; background: #F9FAFB; border-radius: 8px;">
+                    <select name="employment_type" style="padding: 8px; font-size: 13px;">
+                        <option value="">All Types</option>
+                        <option value="FULLTIME" {{#if (eq activeFilters.employment_type "FULLTIME")}}selected{{/if}}>Full-time</option>
+                        <option value="INTERN" {{#if (eq activeFilters.employment_type "INTERN")}}selected{{/if}}>Internship</option>
+                        <option value="PARTTIME" {{#if (eq activeFilters.employment_type "PARTTIME")}}selected{{/if}}>Part-time</option>
+                        <option value="CONTRACTOR" {{#if (eq activeFilters.employment_type "CONTRACTOR")}}selected{{/if}}>Contract</option>
+                    </select>
+                    
+                    <select name="remote_jobs_only" style="padding: 8px; font-size: 13px;">
+                        <option value="">All Locations</option>
+                        <option value="true" {{#if (eq activeFilters.remote_jobs_only "true")}}selected{{/if}}>Remote Only</option>
+                        <option value="false" {{#if (eq activeFilters.remote_jobs_only "false")}}selected{{/if}}>On-site/Hybrid</option>
+                    </select>
+                    
+                    <select name="job_requirements" style="padding: 8px; font-size: 13px;">
+                        <option value="">All Levels</option>
+                        <option value="no_experience" {{#if (eq activeFilters.job_requirements "no_experience")}}selected{{/if}}>Entry Level</option>
+                        <option value="under_3_years_experience" {{#if (eq activeFilters.job_requirements "under_3_years_experience")}}selected{{/if}}>Under 3 Years</option>
+                        <option value="more_than_3_years_experience" {{#if (eq activeFilters.job_requirements "more_than_3_years_experience")}}selected{{/if}}>3+ Years</option>
+                    </select>
+                    
+                    <select name="date_posted" style="padding: 8px; font-size: 13px;">
+                        <option value="all" {{#if (eq activeFilters.date_posted "all")}}selected{{/if}}>All Time</option>
+                        <option value="today" {{#if (eq activeFilters.date_posted "today")}}selected{{/if}}>Today</option>
+                        <option value="3days" {{#if (eq activeFilters.date_posted "3days")}}selected{{/if}}>Past 3 Days</option>
+                        <option value="week" {{#if (eq activeFilters.date_posted "week")}}selected{{/if}}>Past Week</option>
+                        <option value="month" {{#if (eq activeFilters.date_posted "month")}}selected{{/if}}>Past Month</option>
+                    </select>
+                </div>
+            </details>
+        </form>
+        
+        {{#if activeFilters.employment_type}}
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px;">
+            <span style="font-size: 13px; color: #6B7280;">Active filters:</span>
+            {{#if activeFilters.employment_type}}
+            <span style="padding: 4px 10px; background: #EEF2FF; color: #6366F1; border-radius: 6px; font-size: 12px; font-weight: 500;">
+                {{activeFilters.employment_type}}
+            </span>
+            {{/if}}
+            {{#if (eq activeFilters.remote_jobs_only "true")}}
+            <span style="padding: 4px 10px; background: #D1FAE5; color: #065F46; border-radius: 6px; font-size: 12px; font-weight: 500;">
+                Remote Only
+            </span>
+            {{/if}}
+            {{#if activeFilters.job_requirements}}
+            <span style="padding: 4px 10px; background: #FEF3C7; color: #92400E; border-radius: 6px; font-size: 12px; font-weight: 500;">
+                {{activeFilters.job_requirements}}
+            </span>
+            {{/if}}
+        </div>
+        {{/if}}
+    </div>
+</div>
+
+<div class="container">
+    {{#if error}}
+    <div style="text-align: center; padding: 60px 20px;">
+        <p style="color: #EF4444; font-size: 16px;">{{error}}</p>
+        <a href="/" class="btn" style="margin-top: 16px;">Try Again</a>
+    </div>
+    {{else}}
+    {{#each jobs}}
+    <div class="job-card">
+        <div class="job-header">
+            {{#if this.employer_logo}}
+            <img src="{{this.employer_logo}}" alt="{{this.employer_name}}" class="company-logo">
+            {{/if}}
+            <div style="flex: 1;">
+                <h3>{{this.job_title}}</h3>
+                <p style="color: #6B7280; margin-top: 4px; font-size: 15px;">{{this.employer_name}}</p>
+            </div>
+        </div>
+        
+        <div class="job-meta">
+            {{#if this.job_city}}
+            <span>
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M7 13A6 6 0 1 0 7 1a6 6 0 0 0 0 12z"/>
+                    <path d="M7 9a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/>
+                </svg>
+                {{this.job_city}}{{#if this.job_state}}, {{this.job_state}}{{/if}}
+            </span>
+            {{/if}}
+            {{#if this.job_employment_type}}
+            <span>
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="2" y="3" width="10" height="9" rx="1"/>
+                    <path d="M6 3V1m2 2V1"/>
+                </svg>
+                {{this.job_employment_type}}
+            </span>
+            {{/if}}
+            {{#if this.job_is_remote}}
+            <span class="badge badge-remote">Remote</span>
+            {{/if}}
+        </div>
+        
+        <p style="color: #4B5563; line-height: 1.7; margin-top: 12px; font-size: 14px;">
+            {{truncate this.job_description 280}}
+        </p>
+        
+        <div class="job-actions">
+            <a href="{{this.job_apply_link}}" 
+               target="_blank" 
+               class="btn"
+               onclick="handleApplyClick(event, '{{this.job_id}}', '{{this.job_title}}', '{{this.employer_name}}', '{{this.job_apply_link}}')">
+                Apply
+            </a>
+            <button class="btn btn-secondary" 
+                    onclick="saveForLater('{{this.job_id}}', '{{this.job_title}}', '{{this.employer_name}}', '{{this.job_apply_link}}')">
+                Save for Later
+            </button>
+        </div>
+    </div>
+    {{else}}
+    <div style="text-align: center; padding: 60px 20px;">
+        <h3>No jobs found</h3>
+        <p style="color: #6B7280; margin-top: 8px;">Try different keywords or location</p>
+        <a href="/" class="btn" style="margin-top: 16px;">New Search</a>
+    </div>
+    {{/each}}
+    {{/if}}
+</div>
+
+<!-- Apply Confirmation Modal -->
+<div id="applyModal" class="modal">
+    <div class="modal-content">
+        <h3 style="margin-bottom: 16px;">Did you apply to this job?</h3>
+        <p style="color: #6B7280; font-size: 14px; margin-bottom: 24px;">We'll track it in your applications dashboard</p>
+        
+        <div class="modal-actions">
+            <button class="btn" onclick="confirmApplied()">Yes, I Applied</button>
+            <button class="btn btn-secondary" onclick="closeModal()">Not Yet</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let pendingApplication = null;
+
+function handleApplyClick(event, jobId, title, company, link) {
+    event.preventDefault();
+    
+    pendingApplication = {
+        id: jobId,
+        title: title,
+        company: company,
+        link: link
+    };
+    
+    window.open(link, '_blank');
+    
+    setTimeout(() => {
+        document.getElementById('applyModal').classList.add('active');
+    }, 500);
+}
+
+function confirmApplied() {
+    if (pendingApplication) {
+        saveToTracker(
+            pendingApplication.id,
+            pendingApplication.title,
+            pendingApplication.company,
+            pendingApplication.link,
+            'applied',
+            'no-decision',
+            {}
+        );
+        
+        closeModal();
+        pendingApplication = null;
+    }
+}
+
+function closeModal() {
+    document.getElementById('applyModal').classList.remove('active');
+}
+
+function saveForLater(jobId, title, company, link) {
+    saveToTracker(jobId, title, company, link, 'saved', 'pending', {});
+}
+
+function saveToTracker(jobId, title, company, link, status, response, filters) {
+    console.log('=== SAVING TO TRACKER ===');
+    console.log('Job ID:', jobId);
+    console.log('Title:', title);
+    console.log('Status:', status);
+    
+    try {
+        let applicationsJson = localStorage.getItem('jobApplications');
+        console.log('Current localStorage:', applicationsJson);
+        
+        let applications = {};
+        if (applicationsJson) {
+            try {
+                applications = JSON.parse(applicationsJson);
+                console.log('Parsed existing applications:', applications);
+            } catch (e) {
+                console.error('Error parsing localStorage, resetting:', e);
+                applications = {};
+            }
+        }
+        
+        const newApp = {
+            id: jobId,
+            title: title,
+            company: company,
+            link: link,
+            status: status,
+            response: response,
+            dateAdded: new Date().toISOString(),
+            filters: filters || {}
+        };
+        
+        console.log('New application object:', newApp);
+        
+        applications[jobId] = newApp;
+        
+        const jsonString = JSON.stringify(applications);
+        console.log('Saving JSON:', jsonString);
+        localStorage.setItem('jobApplications', jsonString);
+        
+        const verify = localStorage.getItem('jobApplications');
+        console.log('Verification - localStorage after save:', verify);
+        
+        if (verify === jsonString) {
+            console.log('✓ Successfully saved to localStorage');
+        } else {
+            console.error('✗ Save verification failed!');
+        }
+        
+        const message = status === 'applied' 
+            ? 'Added to tracker as Applied!' 
+            : 'Saved for later!';
+        
+        showNotification(message);
+        
+    } catch (err) {
+        console.error('=== ERROR SAVING ===');
+        console.error('Error details:', err);
+        console.error('Error stack:', err.stack);
+        alert('Error saving to tracker: ' + err.message);
+    }
+}
+
+function showNotification(message) {
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        background: #111827;
+        color: white;
+        padding: 16px 24px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        z-index: 1000;
+        animation: slideIn 0.3s ease;
+    `;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.animation = 'slideOut 0.3s ease';
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
+}
+
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideIn {
+        from { transform: translateX(400px); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes slideOut {
+        from { transform: translateX(0); opacity: 1; }
+        to { transform: translateX(400px); opacity: 0; }
+    }
+`;
+document.head.appendChild(style);
+
+document.getElementById('applyModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeModal();
+    }
+});
+
+console.log('Page loaded. Current localStorage:', localStorage.getItem('jobApplications'));
+</script>
