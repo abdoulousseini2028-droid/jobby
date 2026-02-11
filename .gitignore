@@ -1,4 +1,16 @@
 .env
+views/.env
+*.env
+.env.*
+
+# OAuth credentials
+client_secret*.json
+
+# Dependencies
 node_modules/
-.DS_Store
+
+# Data files
 email-updates.json
+
+# OS files
+.DS_Store
