@@ -225,5 +225,41 @@ app.get('/api/check-emails', async (req, res) => {
     res.json({ error: 'Failed to check emails' });
   }
 });
+// 1. IMPORTS (at the top)
+const express = require('express');
+const mongoose = require('mongoose');
+
+// 2. DATABASE MODEL (The blueprint)
+// This MUST come before the route, or the server won't know what "Job" is!
+const jobSchema = new mongoose.Schema({
+    jobId: String,
+    title: String,
+    company: String,
+    link: String,
+    status: String,
+    response: String,
+    dateAdded: { type: Date, default: Date.now },
+    filters: Object
+});
+const Job = mongoose.model('Job', jobSchema);
+
+// 3. YOUR ROUTES (Paste the code here!)
+// ---------------------------------------------------------
+app.post('/api/jobs', async (req, res) => {
+    try {
+        await Job.findOneAndUpdate(
+            { jobId: req.body.jobId }, 
+            req.body, 
+            { upsert: true, new: true }
+        );
+        res.status(200).json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+// ---------------------------------------------------------
+
+// 4. SERVER START (at the bottom)
+module.exports = app; // If using Vercel
 
 module.exports = app;
