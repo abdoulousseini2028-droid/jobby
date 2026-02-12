@@ -113,22 +113,37 @@ app.get('/search', async (req, res) => {
   }
 });
 
-// Tracker page
-app.get('/tracker', (req, res) => {
-  res.render('tracker', { isTracker: true });
+// GET Tracker Page (Now fetches from DB!)
+app.get('/tracker', async (req, res) => {
+  try {
+    // "Job.find()" is a Mongoose command to get ALL jobs
+    // .lean() makes it plain JSON so Handlebars can read it easily
+    const jobs = await Job.find().sort({ dateAdded: -1 }).lean();
+    
+    res.render('tracker', { 
+      isTracker: true,
+      jobs: jobs // Pass the data to the view
+    });
+  } catch (err) {
+    res.status(500).send('Server Error');
+  }
 });
 
-// ================= GMAIL AUTH =================
-
-// Connect Gmail
-app.get('/connect-gmail', (req, res) => {
-  const authUrl = oauth2Client.generateAuthUrl({
-    access_type: 'offline',
-    scope: ['https://www.googleapis.com/auth/gmail.readonly'],
-    prompt: 'consent'
-  });
-
-  res.redirect(authUrl);
+// NEW ROUTE: Save a Job (Frontend calls this)
+app.post('/api/jobs', async (req, res) => {
+  try {
+    // Check if job already exists to avoid duplicates
+    const exists = await Job.findOne({ jobId: req.body.jobId });
+    
+    if (!exists) {
+      // Create new job in DB
+      await Job.create(req.body);
+    }
+    
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to save job' });
+  }
 });
 
 // OAuth Callback
