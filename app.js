@@ -1,4 +1,24 @@
 require('dotenv').config();
+// 1. IMPORT & CONNECT
+const mongoose = require('mongoose');
+
+// Connect to MongoDB
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log('Connected to MongoDB'))
+  .catch(err => console.error('Could not connect to MongoDB', err));
+
+// 2. DEFINE THE BLUEPRINT (SCHEMA)
+const jobSchema = new mongoose.Schema({
+  jobId: String,
+  title: String,
+  company: String,
+  link: String,
+  status: { type: String, default: 'saved' }, // saved, applied, interviewing
+  dateAdded: { type: Date, default: Date.now }
+});
+
+// Create the Model (This is the tool we use to talk to the DB)
+const Job = mongoose.model('Job', jobSchema);
 
 const express = require('express');
 const axios = require('axios');
