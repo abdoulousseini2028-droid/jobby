@@ -276,26 +276,44 @@ function saveForLater(jobId, title, company, link) {
     saveToTracker(jobId, title, company, link, 'saved', 'pending', {});
 }
 
-function saveToTracker(jobId, title, company, link, status, response, filters) {
-    console.log('=== SAVING TO TRACKER ===');
-    console.log('Job ID:', jobId);
-    console.log('Title:', title);
-    console.log('Status:', status);
+async function saveToTracker(jobId, title, company, link, status, response, filters) {
+    console.log('=== SENDING TO DATABASE ===');
     
+    const jobData = {
+        jobId: jobId,
+        title: title,
+        company: company,
+        link: link,
+        status: status,
+        response: response,
+        filters: filters || {}
+    };
+
     try {
-        let applicationsJson = localStorage.getItem('jobApplications');
-        console.log('Current localStorage:', applicationsJson);
-        
-        let applications = {};
-        if (applicationsJson) {
-            try {
-                applications = JSON.parse(applicationsJson);
-                console.log('Parsed existing applications:', applications);
-            } catch (e) {
-                console.error('Error parsing localStorage, resetting:', e);
-                applications = {};
-            }
+        // We talk to the API route you created in app.js
+        const res = await fetch('/api/jobs', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(jobData)
+        });
+
+        if (res.ok) {
+            console.log('✓ Successfully saved to MongoDB Atlas');
+            const message = status === 'applied' 
+                ? 'Added to tracker as Applied!' 
+                : 'Saved for later!';
+            showNotification(message);
+        } else {
+            throw new Error('Server responded with an error');
         }
+        
+    } catch (err) {
+        console.error('=== DATABASE ERROR ===', err);
+        showNotification('Failed to save to database. Is the server running?');
+    }
+}
         
         const newApp = {
             id: jobId,
