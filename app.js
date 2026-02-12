@@ -3,10 +3,16 @@ require('dotenv').config();
 const mongoose = require('mongoose');
 
 // Connect to MongoDB
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('Connected to MongoDB'))
-  .catch(err => console.error('Could not connect to MongoDB', err));
+console.log("MONGO_URI:", process.env.MONGO_URI);
 
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => {
+    console.log("MongoDB Connected Successfully");
+  })
+  .catch(err => {
+    console.error("MongoDB FULL ERROR:");
+    console.error(err);
+  });
 // 2. DEFINE THE BLUEPRINT (SCHEMA)
 const jobSchema = new mongoose.Schema({
   jobId: String,
