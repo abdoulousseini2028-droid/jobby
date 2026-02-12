@@ -1,36 +1,14 @@
 require('dotenv').config();
-// 1. IMPORT & CONNECT
-const mongoose = require('mongoose');
-
-// Connect to MongoDB
-console.log("MONGO_URI:", process.env.MONGO_URI);
-
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => {
-    console.log("MongoDB Connected Successfully");
-  })
-  .catch(err => {
-    console.error("MongoDB FULL ERROR:");
-    console.error(err);
-  });
-// 2. DEFINE THE BLUEPRINT (SCHEMA)
-const jobSchema = new mongoose.Schema({
-  jobId: String,
-  title: String,
-  company: String,
-  link: String,
-  status: { type: String, default: 'saved' }, // saved, applied, interviewing
-  dateAdded: { type: Date, default: Date.now }
-});
-
-// Create the Model (This is the tool we use to talk to the DB)
-const Job = mongoose.model('Job', jobSchema);
+// In-memory fallback store for serverless compatibility
+// (prevents deployment crashes when a DB dependency/URI is unavailable)
+const jobStore = [];
 
 const express = require('express');
 const axios = require('axios');
 const { engine } = require('express-handlebars');
 const { google } = require('googleapis');
 const cookieParser = require('cookie-parser');
+const path = require('path');
 
 const app = express();
 
@@ -38,7 +16,7 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // ================= VIEW ENGINE =================
 app.engine('hbs', engine({
@@ -56,7 +34,7 @@ app.engine('hbs', engine({
 }));
 
 app.set('view engine', 'hbs');
-app.set('views', './views');
+app.set('views', path.join(__dirname, 'views'));
 
 // ================= OAUTH =================
 const oauth2Client = new google.auth.OAuth2(
@@ -122,9 +100,11 @@ app.get('/search', async (req, res) => {
 // GET Tracker Page (Now fetches from DB!)
 app.get('/tracker', async (req, res) => {
   try {
-    // "Job.find()" is a Mongoose command to get ALL jobs
-    // .lean() makes it plain JSON so Handlebars can read it easily
-    const jobs = await Job.find().sort({ dateAdded: -1 }).lean();
+    const jobs = [...jobStore].sort((a, b) => {
+      const aTime = new Date(a.dateAdded || 0).getTime();
+      const bTime = new Date(b.dateAdded || 0).getTime();
+      return bTime - aTime;
+    });
     
     res.render('tracker', { 
       isTracker: true,
@@ -138,12 +118,14 @@ app.get('/tracker', async (req, res) => {
 // NEW ROUTE: Save a Job (Frontend calls this)
 app.post('/api/jobs', async (req, res) => {
   try {
-    // Check if job already exists to avoid duplicates
-    const exists = await Job.findOne({ jobId: req.body.jobId });
+    const exists = jobStore.find(job => job.jobId === req.body.jobId);
     
     if (!exists) {
-      // Create new job in DB
-      await Job.create(req.body);
+      jobStore.push({
+        ...req.body,
+        status: req.body.status || 'saved',
+        dateAdded: req.body.dateAdded || new Date().toISOString()
+      });
     }
     
     res.json({ success: true });
@@ -229,6 +211,14 @@ res.json({ updates });
   } catch (err) {
     res.json({ error: 'Failed to check emails' });
   }
+});
+
+
+// Centralized error logging (helps debug Vercel 500s)
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err);
+  if (res.headersSent) return next(err);
+  return res.status(500).send('Internal Server Error');
 });
 
 // JUST THIS AT THE VERY END:
