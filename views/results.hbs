@@ -1,4 +1,4 @@
-<style>
+style>
 .job-card {
     background: white;
     border: 1px solid #E5E7EB;
@@ -68,6 +68,37 @@
     background: #D1FAE5;
     color: #065F46;
 }
+
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal.active {
+    display: flex;
+}
+
+.modal-content {
+    background: white;
+    padding: 32px;
+    border-radius: 12px;
+    max-width: 400px;
+    width: 90%;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 24px;
+}
 </style>
 
 <div class="search-bar">
@@ -124,27 +155,6 @@
                 </div>
             </details>
         </form>
-        
-        {{#if activeFilters.employment_type}}
-        <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px;">
-            <span style="font-size: 13px; color: #6B7280;">Active filters:</span>
-            {{#if activeFilters.employment_type}}
-            <span style="padding: 4px 10px; background: #EEF2FF; color: #6366F1; border-radius: 6px; font-size: 12px; font-weight: 500;">
-                {{activeFilters.employment_type}}
-            </span>
-            {{/if}}
-            {{#if (eq activeFilters.remote_jobs_only "true")}}
-            <span style="padding: 4px 10px; background: #D1FAE5; color: #065F46; border-radius: 6px; font-size: 12px; font-weight: 500;">
-                Remote Only
-            </span>
-            {{/if}}
-            {{#if activeFilters.job_requirements}}
-            <span style="padding: 4px 10px; background: #FEF3C7; color: #92400E; border-radius: 6px; font-size: 12px; font-weight: 500;">
-                {{activeFilters.job_requirements}}
-            </span>
-            {{/if}}
-        </div>
-        {{/if}}
     </div>
 </div>
 
@@ -244,8 +254,10 @@ function handleApplyClick(event, jobId, title, company, link) {
         link: link
     };
     
+    // Open the job application in new tab
     window.open(link, '_blank');
     
+    // Show modal after a short delay
     setTimeout(() => {
         document.getElementById('applyModal').classList.add('active');
     }, 500);
@@ -258,9 +270,7 @@ function confirmApplied() {
             pendingApplication.title,
             pendingApplication.company,
             pendingApplication.link,
-            'applied',
-            'no-decision',
-            {}
+            'applied'
         );
         
         closeModal();
@@ -273,24 +283,24 @@ function closeModal() {
 }
 
 function saveForLater(jobId, title, company, link) {
-    saveToTracker(jobId, title, company, link, 'saved', 'pending', {});
+    saveToTracker(jobId, title, company, link, 'saved');
 }
 
-async function saveToTracker(jobId, title, company, link, status, response, filters) {
-    console.log('=== SENDING TO DATABASE ===');
+async function saveToTracker(jobId, title, company, link, status) {
+    console.log('=== SAVING TO TRACKER ===');
+    console.log('Job ID:', jobId);
+    console.log('Title:', title);
+    console.log('Status:', status);
     
     const jobData = {
         jobId: jobId,
         title: title,
         company: company,
         link: link,
-        status: status,
-        response: response,
-        filters: filters || {}
+        status: status
     };
 
     try {
-        // We talk to the API route you created in app.js
         const res = await fetch('/api/jobs', {
             method: 'POST',
             headers: {
@@ -299,61 +309,21 @@ async function saveToTracker(jobId, title, company, link, status, response, filt
             body: JSON.stringify(jobData)
         });
 
-        if (res.ok) {
-            console.log('✓ Successfully saved to MongoDB Atlas');
+        const data = await res.json();
+        console.log('Server response:', data);
+
+        if (res.ok && data.success) {
             const message = status === 'applied' 
-                ? 'Added to tracker as Applied!' 
-                : 'Saved for later!';
+                ? '✓ Added to tracker as Applied!' 
+                : '✓ Saved for later!';
             showNotification(message);
         } else {
-            throw new Error('Server responded with an error');
+            throw new Error(data.message || 'Failed to save');
         }
         
     } catch (err) {
-        console.error('=== DATABASE ERROR ===', err);
-        showNotification('Failed to save to database. Is the server running?');
-    }
-}
-        
-        const newApp = {
-            id: jobId,
-            title: title,
-            company: company,
-            link: link,
-            status: status,
-            response: response,
-            dateAdded: new Date().toISOString(),
-            filters: filters || {}
-        };
-        
-        console.log('New application object:', newApp);
-        
-        applications[jobId] = newApp;
-        
-        const jsonString = JSON.stringify(applications);
-        console.log('Saving JSON:', jsonString);
-        localStorage.setItem('jobApplications', jsonString);
-        
-        const verify = localStorage.getItem('jobApplications');
-        console.log('Verification - localStorage after save:', verify);
-        
-        if (verify === jsonString) {
-            console.log('✓ Successfully saved to localStorage');
-        } else {
-            console.error('✗ Save verification failed!');
-        }
-        
-        const message = status === 'applied' 
-            ? 'Added to tracker as Applied!' 
-            : 'Saved for later!';
-        
-        showNotification(message);
-        
-    } catch (err) {
-        console.error('=== ERROR SAVING ===');
-        console.error('Error details:', err);
-        console.error('Error stack:', err.stack);
-        alert('Error saving to tracker: ' + err.message);
+        console.error('=== SAVE ERROR ===', err);
+        showNotification('❌ Failed to save. Please try again.');
     }
 }
 
@@ -370,7 +340,7 @@ function showNotification(message) {
         font-size: 14px;
         font-weight: 500;
         box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-        z-index: 1000;
+        z-index: 1001;
         animation: slideIn 0.3s ease;
     `;
     notification.textContent = message;
@@ -382,6 +352,7 @@ function showNotification(message) {
     }, 3000);
 }
 
+// Add animation styles
 const style = document.createElement('style');
 style.textContent = `
     @keyframes slideIn {
@@ -395,11 +366,12 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
+// Close modal when clicking outside
 document.getElementById('applyModal').addEventListener('click', function(e) {
     if (e.target === this) {
         closeModal();
     }
 });
 
-console.log('Page loaded. Current localStorage:', localStorage.getItem('jobApplications'));
+console.log('Results page loaded - save functionality ready');
 </script>
