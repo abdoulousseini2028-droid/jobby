@@ -118,7 +118,7 @@
                 </button>
             </div>
             
-            <!-- Collapsible Filters -->
+            <!-- Filters -->
             <details {{#if activeFilters.employment_type}}open{{/if}}>
                 <summary style="cursor: pointer; font-size: 14px; color: #6B7280; margin-bottom: 12px; font-weight: 500;">
                     Filters {{#if activeFilters.employment_type}}(Active){{/if}}
@@ -126,31 +126,31 @@
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; padding: 12px; background: #F9FAFB; border-radius: 8px;">
                     <select name="employment_type" style="padding: 8px; font-size: 13px;">
                         <option value="">All Types</option>
-                        <option value="FULLTIME" {{#if (eq activeFilters.employment_type "FULLTIME")}}selected{{/if}}>Full-time</option>
-                        <option value="INTERN" {{#if (eq activeFilters.employment_type "INTERN")}}selected{{/if}}>Internship</option>
-                        <option value="PARTTIME" {{#if (eq activeFilters.employment_type "PARTTIME")}}selected{{/if}}>Part-time</option>
-                        <option value="CONTRACTOR" {{#if (eq activeFilters.employment_type "CONTRACTOR")}}selected{{/if}}>Contract</option>
+                        <option value="FULLTIME">Full-time</option>
+                        <option value="INTERN">Internship</option>
+                        <option value="PARTTIME">Part-time</option>
+                        <option value="CONTRACTOR">Contract</option>
                     </select>
                     
                     <select name="remote_jobs_only" style="padding: 8px; font-size: 13px;">
                         <option value="">All Locations</option>
-                        <option value="true" {{#if (eq activeFilters.remote_jobs_only "true")}}selected{{/if}}>Remote Only</option>
-                        <option value="false" {{#if (eq activeFilters.remote_jobs_only "false")}}selected{{/if}}>On-site/Hybrid</option>
+                        <option value="true">Remote Only</option>
+                        <option value="false">On-site/Hybrid</option>
                     </select>
                     
                     <select name="job_requirements" style="padding: 8px; font-size: 13px;">
                         <option value="">All Levels</option>
-                        <option value="no_experience" {{#if (eq activeFilters.job_requirements "no_experience")}}selected{{/if}}>Entry Level</option>
-                        <option value="under_3_years_experience" {{#if (eq activeFilters.job_requirements "under_3_years_experience")}}selected{{/if}}>Under 3 Years</option>
-                        <option value="more_than_3_years_experience" {{#if (eq activeFilters.job_requirements "more_than_3_years_experience")}}selected{{/if}}>3+ Years</option>
+                        <option value="no_experience">Entry Level</option>
+                        <option value="under_3_years_experience">Under 3 Years</option>
+                        <option value="more_than_3_years_experience">3+ Years</option>
                     </select>
                     
                     <select name="date_posted" style="padding: 8px; font-size: 13px;">
-                        <option value="all" {{#if (eq activeFilters.date_posted "all")}}selected{{/if}}>All Time</option>
-                        <option value="today" {{#if (eq activeFilters.date_posted "today")}}selected{{/if}}>Today</option>
-                        <option value="3days" {{#if (eq activeFilters.date_posted "3days")}}selected{{/if}}>Past 3 Days</option>
-                        <option value="week" {{#if (eq activeFilters.date_posted "week")}}selected{{/if}}>Past Week</option>
-                        <option value="month" {{#if (eq activeFilters.date_posted "month")}}selected{{/if}}>Past Month</option>
+                        <option value="all">All Time</option>
+                        <option value="today">Today</option>
+                        <option value="3days">Past 3 Days</option>
+                        <option value="week">Past Week</option>
+                        <option value="month">Past Month</option>
                     </select>
                 </div>
             </details>
@@ -179,22 +179,10 @@
         
         <div class="job-meta">
             {{#if this.job_city}}
-            <span>
-                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M7 13A6 6 0 1 0 7 1a6 6 0 0 0 0 12z"/>
-                    <path d="M7 9a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/>
-                </svg>
-                {{this.job_city}}{{#if this.job_state}}, {{this.job_state}}{{/if}}
-            </span>
+            <span>📍 {{this.job_city}}{{#if this.job_state}}, {{this.job_state}}{{/if}}</span>
             {{/if}}
             {{#if this.job_employment_type}}
-            <span>
-                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="2" y="3" width="10" height="9" rx="1"/>
-                    <path d="M6 3V1m2 2V1"/>
-                </svg>
-                {{this.job_employment_type}}
-            </span>
+            <span>💼 {{this.job_employment_type}}</span>
             {{/if}}
             {{#if this.job_is_remote}}
             <span class="badge badge-remote">Remote</span>
@@ -228,11 +216,11 @@
     {{/if}}
 </div>
 
-<!-- Apply Confirmation Modal -->
+<!-- Apply Modal -->
 <div id="applyModal" class="modal">
     <div class="modal-content">
         <h3 style="margin-bottom: 16px;">Did you apply to this job?</h3>
-        <p style="color: #6B7280; font-size: 14px; margin-bottom: 24px;">We'll track it in your applications dashboard</p>
+        <p style="color: #6B7280; font-size: 14px; margin-bottom: 24px;">We'll track it in your dashboard</p>
         
         <div class="modal-actions">
             <button class="btn" onclick="confirmApplied()">Yes, I Applied</button>
@@ -241,48 +229,32 @@
     </div>
 </div>
 
+<!-- Login Required Modal -->
+<div id="loginModal" class="modal">
+    <div class="modal-content">
+        <h3 style="margin-bottom: 16px;">Sign in required</h3>
+        <p style="color: #6B7280; font-size: 14px; margin-bottom: 24px;">Please sign in with Google to save jobs and track your applications</p>
+        
+        <div class="modal-actions">
+            <a href="/login" class="btn" style="text-decoration: none;">Sign In with Google</a>
+            <button class="btn btn-secondary" onclick="closeLoginModal()">Cancel</button>
+        </div>
+    </div>
+</div>
+
 <script>
-// ============== STORAGE HELPER ==============
-const PENDING_JOBS_KEY = 'pendingJobApplications';
-
-function getPendingJobs() {
-    try {
-        const stored = localStorage.getItem(PENDING_JOBS_KEY);
-        return stored ? JSON.parse(stored) : [];
-    } catch (e) {
-        console.error('Error reading pending jobs:', e);
-        return [];
-    }
-}
-
-function setPendingJobs(jobs) {
-    try {
-        localStorage.setItem(PENDING_JOBS_KEY, JSON.stringify(jobs));
-    } catch (e) {
-        console.error('Error storing pending jobs:', e);
-    }
-}
-
-function addPendingJob(jobData) {
-    const pending = getPendingJobs();
-    // Avoid duplicates
-    if (!pending.find(j => j.id === jobData.id)) {
-        pending.push({
-            ...jobData,
-            timestamp: new Date().toISOString()
-        });
-        setPendingJobs(pending);
-    }
-}
-
-function removePendingJob(jobId) {
-    const pending = getPendingJobs();
-    const filtered = pending.filter(j => j.id !== jobId);
-    setPendingJobs(filtered);
-}
-
-// ============== MODAL LOGIC ==============
 let pendingApplication = null;
+
+// Check if user is authenticated
+async function checkAuth() {
+    try {
+        const res = await fetch('/api/auth-status');
+        const data = await res.json();
+        return data.authenticated;
+    } catch (err) {
+        return false;
+    }
+}
 
 function handleApplyClick(event, jobId, title, company, link) {
     event.preventDefault();
@@ -294,31 +266,22 @@ function handleApplyClick(event, jobId, title, company, link) {
         link: link
     };
     
-    // Store this job as pending in localStorage
-    addPendingJob(pendingApplication);
-    
-    // Open the job application in new tab
     window.open(link, '_blank');
     
-    // Show modal after a short delay
     setTimeout(() => {
         document.getElementById('applyModal').classList.add('active');
-    }, 1000);
+    }, 500);
 }
 
-function confirmApplied() {
+async function confirmApplied() {
     if (pendingApplication) {
-        // Save to tracker with 'applied' status
-        saveToTracker(
+        await saveToTracker(
             pendingApplication.id,
             pendingApplication.title,
             pendingApplication.company,
             pendingApplication.link,
             'applied'
         );
-        
-        // Remove from pending list
-        removePendingJob(pendingApplication.id);
         
         closeModal();
         pendingApplication = null;
@@ -327,18 +290,27 @@ function confirmApplied() {
 
 function closeModal() {
     document.getElementById('applyModal').classList.remove('active');
-    pendingApplication = null;
 }
 
-function saveForLater(jobId, title, company, link) {
-    saveToTracker(jobId, title, company, link, 'saved');
+function closeLoginModal() {
+    document.getElementById('loginModal').classList.remove('active');
+}
+
+async function saveForLater(jobId, title, company, link) {
+    await saveToTracker(jobId, title, company, link, 'saved');
 }
 
 async function saveToTracker(jobId, title, company, link, status) {
-    console.log('=== SAVING TO TRACKER ===');
-    console.log('Job ID:', jobId);
-    console.log('Title:', title);
-    console.log('Status:', status);
+    console.log('=== SAVING JOB ===');
+    
+    // Check if user is logged in
+    const isAuthenticated = await checkAuth();
+    
+    if (!isAuthenticated) {
+        console.log('User not authenticated');
+        document.getElementById('loginModal').classList.add('active');
+        return;
+    }
     
     const jobData = {
         jobId: jobId,
@@ -366,7 +338,7 @@ async function saveToTracker(jobId, title, company, link, status) {
                 : '✓ Saved for later!';
             showNotification(message);
         } else {
-            throw new Error(data.message || data.error || 'Failed to save');
+            throw new Error(data.message || 'Failed to save');
         }
         
     } catch (err) {
@@ -400,35 +372,6 @@ function showNotification(message) {
     }, 3000);
 }
 
-// ============== CHECK FOR PENDING JOBS ON PAGE LOAD ==============
-window.addEventListener('DOMContentLoaded', () => {
-    console.log('Page loaded - checking for pending jobs');
-    
-    const pendingJobs = getPendingJobs();
-    console.log('Found pending jobs:', pendingJobs.length);
-    
-    if (pendingJobs.length > 0) {
-        // Show modal for the most recent pending job
-        const mostRecent = pendingJobs[pendingJobs.length - 1];
-        
-        // Only show if it's been less than 24 hours
-        const timestamp = new Date(mostRecent.timestamp);
-        const hoursSince = (new Date() - timestamp) / (1000 * 60 * 60);
-        
-        if (hoursSince < 24) {
-            pendingApplication = mostRecent;
-            
-            setTimeout(() => {
-                document.getElementById('applyModal').classList.add('active');
-            }, 500);
-        } else {
-            // Clean up old pending jobs
-            removePendingJob(mostRecent.id);
-        }
-    }
-});
-
-// Add animation styles
 const style = document.createElement('style');
 style.textContent = `
     @keyframes slideIn {
@@ -442,12 +385,13 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
-// Close modal when clicking outside
 document.getElementById('applyModal').addEventListener('click', function(e) {
-    if (e.target === this) {
-        closeModal();
-    }
+    if (e.target === this) closeModal();
 });
 
-console.log('Results page loaded - save functionality ready');
+document.getElementById('loginModal').addEventListener('click', function(e) {
+    if (e.target === this) closeLoginModal();
+});
+
+console.log('Results page loaded');
 </script>
