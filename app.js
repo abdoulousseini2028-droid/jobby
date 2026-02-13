@@ -5,6 +5,7 @@ const axios = require('axios');
 const { engine } = require('express-handlebars');
 const { google } = require('googleapis');
 const cookieParser = require('cookie-parser');
+const path = require('path');
 
 // ================= SERVERLESS-FRIENDLY MongoDB CONNECTION =================
 let isConnected = false;
@@ -47,12 +48,14 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // ================= VIEW ENGINE =================
 app.engine('hbs', engine({
   extname: '.hbs',
   defaultLayout: 'main',
+  layoutsDir: path.join(__dirname, 'views', 'layouts'),
+  partialsDir: path.join(__dirname, 'views', 'partials'),
   helpers: {
     stripHtml: (h) => h ? h.replace(/<[^>]*>?/gm, '') : '',
     truncate: (text, length) => {
@@ -65,7 +68,7 @@ app.engine('hbs', engine({
 }));
 
 app.set('view engine', 'hbs');
-app.set('views', __dirname + '/views');
+app.set('views', path.join(__dirname, 'views'));
 
 // ================= OAUTH =================
 const oauth2Client = new google.auth.OAuth2(
