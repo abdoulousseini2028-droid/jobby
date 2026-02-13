@@ -1,4 +1,4 @@
-style>
+<style>
 .job-card {
     background: white;
     border: 1px solid #E5E7EB;
@@ -242,6 +242,46 @@ style>
 </div>
 
 <script>
+// ============== STORAGE HELPER ==============
+const PENDING_JOBS_KEY = 'pendingJobApplications';
+
+function getPendingJobs() {
+    try {
+        const stored = localStorage.getItem(PENDING_JOBS_KEY);
+        return stored ? JSON.parse(stored) : [];
+    } catch (e) {
+        console.error('Error reading pending jobs:', e);
+        return [];
+    }
+}
+
+function setPendingJobs(jobs) {
+    try {
+        localStorage.setItem(PENDING_JOBS_KEY, JSON.stringify(jobs));
+    } catch (e) {
+        console.error('Error storing pending jobs:', e);
+    }
+}
+
+function addPendingJob(jobData) {
+    const pending = getPendingJobs();
+    // Avoid duplicates
+    if (!pending.find(j => j.id === jobData.id)) {
+        pending.push({
+            ...jobData,
+            timestamp: new Date().toISOString()
+        });
+        setPendingJobs(pending);
+    }
+}
+
+function removePendingJob(jobId) {
+    const pending = getPendingJobs();
+    const filtered = pending.filter(j => j.id !== jobId);
+    setPendingJobs(filtered);
+}
+
+// ============== MODAL LOGIC ==============
 let pendingApplication = null;
 
 function handleApplyClick(event, jobId, title, company, link) {
@@ -254,17 +294,21 @@ function handleApplyClick(event, jobId, title, company, link) {
         link: link
     };
     
+    // Store this job as pending in localStorage
+    addPendingJob(pendingApplication);
+    
     // Open the job application in new tab
     window.open(link, '_blank');
     
     // Show modal after a short delay
     setTimeout(() => {
         document.getElementById('applyModal').classList.add('active');
-    }, 500);
+    }, 1000);
 }
 
 function confirmApplied() {
     if (pendingApplication) {
+        // Save to tracker with 'applied' status
         saveToTracker(
             pendingApplication.id,
             pendingApplication.title,
@@ -273,6 +317,9 @@ function confirmApplied() {
             'applied'
         );
         
+        // Remove from pending list
+        removePendingJob(pendingApplication.id);
+        
         closeModal();
         pendingApplication = null;
     }
@@ -280,6 +327,7 @@ function confirmApplied() {
 
 function closeModal() {
     document.getElementById('applyModal').classList.remove('active');
+    pendingApplication = null;
 }
 
 function saveForLater(jobId, title, company, link) {
@@ -318,7 +366,7 @@ async function saveToTracker(jobId, title, company, link, status) {
                 : '✓ Saved for later!';
             showNotification(message);
         } else {
-            throw new Error(data.message || 'Failed to save');
+            throw new Error(data.message || data.error || 'Failed to save');
         }
         
     } catch (err) {
@@ -351,6 +399,34 @@ function showNotification(message) {
         setTimeout(() => notification.remove(), 300);
     }, 3000);
 }
+
+// ============== CHECK FOR PENDING JOBS ON PAGE LOAD ==============
+window.addEventListener('DOMContentLoaded', () => {
+    console.log('Page loaded - checking for pending jobs');
+    
+    const pendingJobs = getPendingJobs();
+    console.log('Found pending jobs:', pendingJobs.length);
+    
+    if (pendingJobs.length > 0) {
+        // Show modal for the most recent pending job
+        const mostRecent = pendingJobs[pendingJobs.length - 1];
+        
+        // Only show if it's been less than 24 hours
+        const timestamp = new Date(mostRecent.timestamp);
+        const hoursSince = (new Date() - timestamp) / (1000 * 60 * 60);
+        
+        if (hoursSince < 24) {
+            pendingApplication = mostRecent;
+            
+            setTimeout(() => {
+                document.getElementById('applyModal').classList.add('active');
+            }, 500);
+        } else {
+            // Clean up old pending jobs
+            removePendingJob(mostRecent.id);
+        }
+    }
+});
 
 // Add animation styles
 const style = document.createElement('style');
