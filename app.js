@@ -54,6 +54,10 @@ const jobSchema = new mongoose.Schema({
   dateAdded: { type: Date, default: Date.now }
 });
 
+// Create compound index: userId + jobId must be unique
+// This allows different users to save the same job
+jobSchema.index({ userId: 1, jobId: 1 }, { unique: true });
+
 const Job = mongoose.model('Job', jobSchema);
 
 // ================= EXPRESS APP =================
@@ -78,7 +82,16 @@ app.engine('hbs', engine({
       if (text.length <= length) return text;
       return text.substring(0, length) + '...';
     },
-    eq: (a, b) => a === b
+    eq: (a, b) => a === b,
+    formatDate: (date) => {
+      if (!date) return '';
+      const d = new Date(date);
+      return d.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric' 
+      });
+    }
   }
 }));
 
@@ -293,13 +306,8 @@ app.post('/api/jobs', requireAuth, async (req, res) => {
     
     await connectDB();
     
-    // Check if THIS USER already saved this job
-    const exists = await Job.findOne({ 
-      userId: req.user.id,
-      jobId: req.body.jobId 
-    });
-    
-    if (!exists) {
+    // Try to create the job
+    try {
       const newJob = await Job.create({
         userId: req.user.id,
         jobId: req.body.jobId,
@@ -310,9 +318,14 @@ app.post('/api/jobs', requireAuth, async (req, res) => {
       });
       console.log('Job created for user:', req.user.email);
       res.json({ success: true, message: 'Job saved!' });
-    } else {
-      console.log('Job already exists for this user');
-      res.json({ success: true, message: 'Job already saved' });
+    } catch (createError) {
+      // If duplicate key error (E11000), job already exists for this user
+      if (createError.code === 11000) {
+        console.log('Job already exists for this user');
+        res.json({ success: true, message: 'Job already saved' });
+      } else {
+        throw createError; // Re-throw if it's not a duplicate error
+      }
     }
     
   } catch (err) {
