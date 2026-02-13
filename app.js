@@ -1,37 +1,46 @@
 require('dotenv').config();
-// 1. IMPORT & CONNECT
 const mongoose = require('mongoose');
-
-// Connect to MongoDB
-console.log("MONGO_URI:", process.env.MONGO_URI);
-
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => {
-    console.log("MongoDB Connected Successfully");
-  })
-  .catch(err => {
-    console.error("MongoDB FULL ERROR:");
-    console.error(err);
-  });
-// 2. DEFINE THE BLUEPRINT (SCHEMA)
-const jobSchema = new mongoose.Schema({
-  jobId: String,
-  title: String,
-  company: String,
-  link: String,
-  status: { type: String, default: 'saved' }, // saved, applied, interviewing
-  dateAdded: { type: Date, default: Date.now }
-});
-
-// Create the Model (This is the tool we use to talk to the DB)
-const Job = mongoose.model('Job', jobSchema);
-
 const express = require('express');
 const axios = require('axios');
 const { engine } = require('express-handlebars');
 const { google } = require('googleapis');
 const cookieParser = require('cookie-parser');
 
+// ================= SERVERLESS-FRIENDLY MongoDB CONNECTION =================
+let isConnected = false;
+
+async function connectDB() {
+  if (isConnected) {
+    console.log('Using existing database connection');
+    return;
+  }
+
+  try {
+    await mongoose.connect(process.env.MONGO_URI, {
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+    });
+    isConnected = true;
+    console.log('MongoDB Connected Successfully');
+  } catch (err) {
+    console.error('MongoDB Connection Error:', err);
+    throw err;
+  }
+}
+
+// ================= DEFINE THE SCHEMA & MODEL =================
+const jobSchema = new mongoose.Schema({
+  jobId: String,
+  title: String,
+  company: String,
+  link: String,
+  status: { type: String, default: 'saved' },
+  dateAdded: { type: Date, default: Date.now }
+});
+
+const Job = mongoose.model('Job', jobSchema);
+
+// ================= EXPRESS APP =================
 const app = express();
 
 // Middleware
@@ -112,6 +121,7 @@ app.get('/search', async (req, res) => {
     });
 
   } catch (err) {
+    console.error('Job search error:', err);
     res.render('results', {
       jobs: [],
       error: 'Failed to fetch jobs.'
@@ -119,35 +129,38 @@ app.get('/search', async (req, res) => {
   }
 });
 
-// GET Tracker Page (Now fetches from DB!)
+// GET Tracker Page (Fetches from MongoDB)
 app.get('/tracker', async (req, res) => {
   try {
-    // "Job.find()" is a Mongoose command to get ALL jobs
-    // .lean() makes it plain JSON so Handlebars can read it easily
+    await connectDB(); // Connect to DB first
+    
     const jobs = await Job.find().sort({ dateAdded: -1 }).lean();
     
     res.render('tracker', { 
       isTracker: true,
-      jobs: jobs // Pass the data to the view
+      jobs: jobs
     });
   } catch (err) {
+    console.error('Tracker error:', err);
     res.status(500).send('Server Error');
   }
 });
 
-// NEW ROUTE: Save a Job (Frontend calls this)
+// POST - Save a Job to MongoDB
 app.post('/api/jobs', async (req, res) => {
   try {
+    await connectDB(); // Connect to DB first
+    
     // Check if job already exists to avoid duplicates
     const exists = await Job.findOne({ jobId: req.body.jobId });
     
     if (!exists) {
-      // Create new job in DB
       await Job.create(req.body);
     }
     
     res.json({ success: true });
   } catch (err) {
+    console.error('Save job error:', err);
     res.status(500).json({ error: 'Failed to save job' });
   }
 });
@@ -161,13 +174,15 @@ app.get('/auth/google/callback', async (req, res) => {
     // Store tokens in cookie
     res.cookie('gmail_tokens', JSON.stringify(tokens), {
       httpOnly: true,
-      secure: true,
-      sameSite: 'lax'
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
 
     res.redirect('/tracker');
 
   } catch (error) {
+    console.error('OAuth callback error:', error);
     res.send('Error connecting Gmail.');
   }
 });
@@ -178,7 +193,7 @@ app.get('/api/gmail-status', (req, res) => {
   res.json({ connected: !!tokens });
 });
 
-// Manual Email Check (Serverless safe)
+// Manual Email Check
 app.get('/api/check-emails', async (req, res) => {
   try {
     const tokenCookie = req.cookies.gmail_tokens;
@@ -224,12 +239,14 @@ app.get('/api/check-emails', async (req, res) => {
         });
       }
     }
-res.json({ updates });
+
+    res.json({ updates });
 
   } catch (err) {
+    console.error('Email check error:', err);
     res.json({ error: 'Failed to check emails' });
   }
 });
 
-// JUST THIS AT THE VERY END:
+// ================= EXPORT FOR VERCEL =================
 module.exports = app;
