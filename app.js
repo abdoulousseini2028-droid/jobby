@@ -65,7 +65,7 @@ app.engine('hbs', engine({
 }));
 
 app.set('view engine', 'hbs');
-app.set('views', './views');
+app.set('views', __dirname + '/views');
 
 // ================= OAUTH =================
 const oauth2Client = new google.auth.OAuth2(
