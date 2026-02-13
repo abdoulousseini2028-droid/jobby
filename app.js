@@ -337,6 +337,12 @@ app.patch('/api/jobs/:id', async (req, res) => {
   }
 });
 
+// Redirect old /connect-gmail route to new /auth/google route
+app.get('/connect-gmail', (req, res) => {
+  console.log('Redirecting /connect-gmail to /auth/google');
+  res.redirect('/auth/google');
+});
+
 // Initiate Gmail OAuth
 app.get('/auth/google', (req, res) => {
   const oauth2Client = getOAuthClient();
@@ -390,6 +396,12 @@ app.get('/auth/google/callback', async (req, res) => {
 app.get('/auth/google/disconnect', (req, res) => {
   res.clearCookie('gmail_tokens');
   res.redirect('/tracker?success=gmail_disconnected');
+});
+
+// Redirect old /disconnect-gmail route to new /auth/google/disconnect route
+app.get('/disconnect-gmail', (req, res) => {
+  console.log('Redirecting /disconnect-gmail to /auth/google/disconnect');
+  res.redirect('/auth/google/disconnect');
 });
 
 // Gmail Status
