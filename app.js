@@ -11,38 +11,58 @@ const path = require('path');
 let isConnected = false;
 
 async function connectDB() {
-  if (isConnected) {
-    console.log('Using existing database connection');
+  if (isConnected && mongoose.connection.readyState === 1) {
+    console.log('✓ Using existing database connection');
     return;
   }
 
+  if (!process.env.MONGO_URI) {
+    throw new Error('MONGO_URI environment variable is not set');
+  }
+
   try {
-    console.log('Attempting MongoDB connection...');
-    console.log('MONGO_URI exists:', !!process.env.MONGO_URI);
+    console.log('→ Connecting to MongoDB...');
     
     await mongoose.connect(process.env.MONGO_URI, {
-      serverSelectionTimeoutMS: 5000,
+      serverSelectionTimeoutMS: 10000,
       socketTimeoutMS: 45000,
+      maxPoolSize: 10,
+      minPoolSize: 2,
     });
+    
     isConnected = true;
-    console.log('MongoDB Connected Successfully');
+    console.log('✓ MongoDB Connected Successfully');
   } catch (err) {
-    console.error('MongoDB Connection Error:', err);
+    console.error('✗ MongoDB Connection Error:', err.message);
+    isConnected = false;
     throw err;
   }
 }
 
-// ================= DEFINE THE SCHEMA & MODEL =================
-const jobSchema = new mongoose.Schema({
-  jobId: String,
-  title: String,
-  company: String,
-  link: String,
-  status: { type: String, default: 'saved' },
-  dateAdded: { type: Date, default: Date.now }
+// Handle MongoDB connection events
+mongoose.connection.on('disconnected', () => {
+  console.log('MongoDB disconnected');
+  isConnected = false;
 });
 
-const Job = mongoose.model('Job', jobSchema);
+mongoose.connection.on('error', (err) => {
+  console.error('MongoDB error:', err);
+  isConnected = false;
+});
+
+// ================= DEFINE THE SCHEMA & MODEL =================
+const jobSchema = new mongoose.Schema({
+  jobId: { type: String, required: true, unique: true },
+  title: { type: String, required: true },
+  company: { type: String, required: true },
+  link: { type: String, required: true },
+  status: { type: String, default: 'saved', enum: ['saved', 'applied', 'interviewing', 'rejected', 'offer'] },
+  dateAdded: { type: Date, default: Date.now },
+  lastUpdated: { type: Date, default: Date.now }
+});
+
+// Use existing model if it exists (prevents OverwriteModelError in serverless)
+const Job = mongoose.models.Job || mongoose.model('Job', jobSchema);
 
 // ================= EXPRESS APP =================
 const app = express();
@@ -52,6 +72,9 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Trust proxy for Vercel
+app.set('trust proxy', 1);
 
 // ================= VIEW ENGINE =================
 app.engine('hbs', engine({
@@ -73,12 +96,27 @@ app.engine('hbs', engine({
 app.set('view engine', 'hbs');
 app.set('views', path.join(__dirname, 'views'));
 
-// ================= OAUTH =================
-const oauth2Client = new google.auth.OAuth2(
-  process.env.GOOGLE_CLIENT_ID,
-  process.env.GOOGLE_CLIENT_SECRET,
-  `${process.env.BASE_URL}/auth/google/callback`
-);
+// ================= OAUTH HELPER =================
+const getOAuthClient = () => {
+  // Determine the correct base URL for Vercel or local
+  let baseUrl = process.env.BASE_URL;
+  
+  if (!baseUrl) {
+    if (process.env.VERCEL_URL) {
+      baseUrl = `https://${process.env.VERCEL_URL}`;
+    } else {
+      baseUrl = 'http://localhost:3000';
+    }
+  }
+  
+  console.log('OAuth callback URL:', `${baseUrl}/auth/google/callback`);
+  
+  return new google.auth.OAuth2(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+    `${baseUrl}/auth/google/callback`
+  );
+};
 
 // ================= KEYWORDS =================
 const POSITIVE_KEYWORDS = [
@@ -144,10 +182,10 @@ app.get('/search', async (req, res) => {
     });
 
   } catch (err) {
-    console.error('Job search error:', err);
+    console.error('Job search error:', err.response?.data || err.message);
     res.render('results', {
       jobs: [],
-      error: 'Failed to fetch jobs.',
+      error: 'Failed to fetch jobs. Please try again.',
       query: q,
       location: l || 'Anywhere'
     });
@@ -180,57 +218,178 @@ app.post('/api/jobs', async (req, res) => {
     console.log('=== SAVE JOB REQUEST ===');
     console.log('Request body:', req.body);
     
+    // Validate required fields
+    if (!req.body.jobId || !req.body.title || !req.body.company || !req.body.link) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Missing required fields',
+        message: 'jobId, title, company, and link are required' 
+      });
+    }
+    
     // Check if MONGO_URI exists
     if (!process.env.MONGO_URI) {
       console.error('MONGO_URI is not set!');
-      return res.status(500).json({ error: 'Database not configured' });
+      return res.status(500).json({ 
+        success: false,
+        error: 'Database not configured',
+        message: 'MONGO_URI environment variable is missing'
+      });
     }
     
     await connectDB();
     console.log('Database connected');
     
     // Check if job already exists
-    const exists = await Job.findOne({ jobId: req.body.jobId });
-    console.log('Job exists:', !!exists);
+    const existingJob = await Job.findOne({ jobId: req.body.jobId });
     
-    if (!exists) {
-      const newJob = await Job.create(req.body);
-      console.log('Job created:', newJob._id);
+    if (existingJob) {
+      console.log('Job already exists, updating status');
+      // Update the status if different
+      if (existingJob.status !== req.body.status) {
+        existingJob.status = req.body.status;
+        existingJob.lastUpdated = new Date();
+        await existingJob.save();
+        console.log('Job status updated to:', req.body.status);
+      }
+      return res.json({ success: true, message: 'Job updated', job: existingJob });
     } else {
-      console.log('Job already exists, skipping');
+      // Create new job
+      const newJob = await Job.create({
+        jobId: req.body.jobId,
+        title: req.body.title,
+        company: req.body.company,
+        link: req.body.link,
+        status: req.body.status || 'saved',
+        dateAdded: new Date(),
+        lastUpdated: new Date()
+      });
+      console.log('Job created:', newJob._id);
+      return res.json({ success: true, message: 'Job saved', job: newJob });
     }
     
-    res.json({ success: true });
   } catch (err) {
     console.error('=== SAVE JOB ERROR ===');
     console.error('Error message:', err.message);
     console.error('Error stack:', err.stack);
     res.status(500).json({ 
+      success: false,
       error: 'Failed to save job',
       message: err.message 
     });
   }
 });
 
+// DELETE - Remove a job from tracker
+app.delete('/api/jobs/:id', async (req, res) => {
+  try {
+    await connectDB();
+    
+    const job = await Job.findByIdAndDelete(req.params.id);
+    
+    if (!job) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Job not found' 
+      });
+    }
+    
+    res.json({ success: true, message: 'Job deleted' });
+  } catch (err) {
+    console.error('Delete job error:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to delete job',
+      message: err.message 
+    });
+  }
+});
+
+// UPDATE - Update job status
+app.patch('/api/jobs/:id', async (req, res) => {
+  try {
+    await connectDB();
+    
+    const job = await Job.findByIdAndUpdate(
+      req.params.id,
+      { 
+        status: req.body.status,
+        lastUpdated: new Date()
+      },
+      { new: true }
+    );
+    
+    if (!job) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Job not found' 
+      });
+    }
+    
+    res.json({ success: true, job });
+  } catch (err) {
+    console.error('Update job error:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to update job',
+      message: err.message 
+    });
+  }
+});
+
+// Initiate Gmail OAuth
+app.get('/auth/google', (req, res) => {
+  const oauth2Client = getOAuthClient();
+  
+  const authUrl = oauth2Client.generateAuthUrl({
+    access_type: 'offline',
+    scope: ['https://www.googleapis.com/auth/gmail.readonly'],
+    prompt: 'consent'
+  });
+  
+  console.log('Redirecting to Google OAuth:', authUrl);
+  res.redirect(authUrl);
+});
+
 // OAuth Callback
 app.get('/auth/google/callback', async (req, res) => {
   try {
-    const { code } = req.query;
+    const { code, error } = req.query;
+    
+    if (error) {
+      console.error('OAuth error:', error);
+      return res.redirect('/tracker?error=oauth_failed');
+    }
+    
+    if (!code) {
+      console.error('No code received from Google');
+      return res.redirect('/tracker?error=no_code');
+    }
+    
+    const oauth2Client = getOAuthClient();
     const { tokens } = await oauth2Client.getToken(code);
+    
+    console.log('OAuth tokens received successfully');
 
     res.cookie('gmail_tokens', JSON.stringify(tokens), {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
 
-    res.redirect('/tracker');
+    res.redirect('/tracker?success=gmail_connected');
 
   } catch (error) {
     console.error('OAuth callback error:', error);
-    res.send('Error connecting Gmail.');
+    res.redirect('/tracker?error=connection_failed');
   }
+});
+
+// Disconnect Gmail
+app.get('/auth/google/disconnect', (req, res) => {
+  res.clearCookie('gmail_tokens');
+  res.redirect('/tracker?success=gmail_disconnected');
 });
 
 // Gmail Status
@@ -244,10 +403,11 @@ app.get('/api/check-emails', async (req, res) => {
   try {
     const tokenCookie = req.cookies.gmail_tokens;
     if (!tokenCookie) {
-      return res.json({ error: 'Not connected' });
+      return res.json({ error: 'Not connected', connected: false });
     }
 
     const tokens = JSON.parse(tokenCookie);
+    const oauth2Client = getOAuthClient();
     oauth2Client.setCredentials(tokens);
 
     const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
@@ -286,12 +446,29 @@ app.get('/api/check-emails', async (req, res) => {
       }
     }
 
-    res.json({ updates });
+    res.json({ updates, connected: true });
 
   } catch (err) {
     console.error('Email check error:', err);
-    res.json({ error: 'Failed to check emails' });
+    
+    // Check if token is expired
+    if (err.code === 401 || err.message?.includes('invalid_grant')) {
+      res.clearCookie('gmail_tokens');
+      return res.json({ error: 'Token expired', connected: false });
+    }
+    
+    res.json({ error: 'Failed to check emails', message: err.message, connected: false });
   }
 });
 
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    mongodb: isConnected ? 'connected' : 'disconnected'
+  });
+});
+
+// Export the Express app for Vercel serverless
 module.exports = app;
