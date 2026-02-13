@@ -17,6 +17,9 @@ async function connectDB() {
   }
 
   try {
+    console.log('Attempting MongoDB connection...');
+    console.log('MONGO_URI exists:', !!process.env.MONGO_URI);
+    
     await mongoose.connect(process.env.MONGO_URI, {
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 45000,
@@ -97,19 +100,30 @@ app.get('/', (req, res) => {
 
 // Job Search
 app.get('/search', async (req, res) => {
-  const { q, l } = req.query;
+  const { q, l, employment_type, remote_jobs_only, job_requirements, date_posted } = req.query;
 
   if (!q) return res.redirect('/');
 
   try {
+    // Build search params with filters
+    const searchParams = {
+      query: l ? `${q} in ${l}` : q,
+      page: '1',
+      num_pages: '1'
+    };
+
+    // Add filters if present
+    if (employment_type) searchParams.employment_types = employment_type;
+    if (remote_jobs_only) searchParams.remote_jobs_only = remote_jobs_only;
+    if (job_requirements) searchParams.job_requirements = job_requirements;
+    if (date_posted) searchParams.date_posted = date_posted;
+
+    console.log('Search params:', searchParams);
+
     const response = await axios.get(
       'https://jsearch.p.rapidapi.com/search',
       {
-        params: {
-          query: l ? `${q} in ${l}` : q,
-          page: '1',
-          num_pages: '1'
-        },
+        params: searchParams,
         headers: {
           'x-rapidapi-key': process.env.RAPID_API_KEY,
           'x-rapidapi-host': process.env.RAPID_API_HOST
@@ -120,14 +134,22 @@ app.get('/search', async (req, res) => {
     res.render('results', {
       jobs: response.data.data || [],
       query: q,
-      location: l || 'Anywhere'
+      location: l || 'Anywhere',
+      activeFilters: {
+        employment_type,
+        remote_jobs_only,
+        job_requirements,
+        date_posted
+      }
     });
 
   } catch (err) {
     console.error('Job search error:', err);
     res.render('results', {
       jobs: [],
-      error: 'Failed to fetch jobs.'
+      error: 'Failed to fetch jobs.',
+      query: q,
+      location: l || 'Anywhere'
     });
   }
 });
@@ -135,9 +157,11 @@ app.get('/search', async (req, res) => {
 // GET Tracker Page (Fetches from MongoDB)
 app.get('/tracker', async (req, res) => {
   try {
-    await connectDB(); // Connect to DB first
+    console.log('Tracker route called');
+    await connectDB();
     
     const jobs = await Job.find().sort({ dateAdded: -1 }).lean();
+    console.log('Found jobs:', jobs.length);
     
     res.render('tracker', { 
       isTracker: true,
@@ -145,26 +169,46 @@ app.get('/tracker', async (req, res) => {
     });
   } catch (err) {
     console.error('Tracker error:', err);
-    res.status(500).send('Server Error');
+    console.error('Error stack:', err.stack);
+    res.status(500).send('Server Error: ' + err.message);
   }
 });
 
 // POST - Save a Job to MongoDB
 app.post('/api/jobs', async (req, res) => {
   try {
-    await connectDB(); // Connect to DB first
+    console.log('=== SAVE JOB REQUEST ===');
+    console.log('Request body:', req.body);
     
-    // Check if job already exists to avoid duplicates
+    // Check if MONGO_URI exists
+    if (!process.env.MONGO_URI) {
+      console.error('MONGO_URI is not set!');
+      return res.status(500).json({ error: 'Database not configured' });
+    }
+    
+    await connectDB();
+    console.log('Database connected');
+    
+    // Check if job already exists
     const exists = await Job.findOne({ jobId: req.body.jobId });
+    console.log('Job exists:', !!exists);
     
     if (!exists) {
-      await Job.create(req.body);
+      const newJob = await Job.create(req.body);
+      console.log('Job created:', newJob._id);
+    } else {
+      console.log('Job already exists, skipping');
     }
     
     res.json({ success: true });
   } catch (err) {
-    console.error('Save job error:', err);
-    res.status(500).json({ error: 'Failed to save job' });
+    console.error('=== SAVE JOB ERROR ===');
+    console.error('Error message:', err.message);
+    console.error('Error stack:', err.stack);
+    res.status(500).json({ 
+      error: 'Failed to save job',
+      message: err.message 
+    });
   }
 });
 
@@ -174,12 +218,11 @@ app.get('/auth/google/callback', async (req, res) => {
     const { code } = req.query;
     const { tokens } = await oauth2Client.getToken(code);
 
-    // Store tokens in cookie
     res.cookie('gmail_tokens', JSON.stringify(tokens), {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+      maxAge: 7 * 24 * 60 * 60 * 1000
     });
 
     res.redirect('/tracker');
@@ -251,5 +294,4 @@ app.get('/api/check-emails', async (req, res) => {
   }
 });
 
-// ================= EXPORT FOR VERCEL =================
 module.exports = app;
