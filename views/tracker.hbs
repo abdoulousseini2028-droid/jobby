@@ -47,26 +47,19 @@
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
 }
 
-.status-select, .response-select {
-    padding: 8px 12px;
-    border: 1px solid #E5E7EB;
-    border-radius: 8px;
-    font-size: 13px;
-    background: white;
-    cursor: pointer;
-    font-weight: 500;
-    transition: all 0.2s;
+.status-badge {
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    display: inline-block;
 }
 
-.status-select:hover, .response-select:hover {
-    border-color: #D1D5DB;
-}
-
-.status-saved { border-left: 3px solid #9CA3AF; }
-.status-applied { border-left: 3px solid #6366F1; }
-.status-interviewing { border-left: 3px solid #F59E0B; }
-.status-offered { border-left: 3px solid #10B981; }
-.status-rejected { border-left: 3px solid #EF4444; }
+.status-saved { background: #F3F4F6; color: #374151; }
+.status-applied { background: #EEF2FF; color: #4F46E5; }
+.status-interviewing { background: #FEF3C7; color: #D97706; }
+.status-offer { background: #D1FAE5; color: #065F46; }
+.status-rejected { background: #FEE2E2; color: #DC2626; }
 
 .tabs {
     display: flex;
@@ -102,27 +95,6 @@
     background: #EEF2FF;
 }
 
-.job-tags {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    margin-top: 12px;
-}
-
-.tag {
-    padding: 4px 10px;
-    background: #F3F4F6;
-    color: #374151;
-    border-radius: 6px;
-    font-size: 12px;
-    font-weight: 500;
-}
-
-.tag-internship { background: #DBEAFE; color: #1E40AF; }
-.tag-fulltime { background: #D1FAE5; color: #065F46; }
-.tag-opt { background: #FEF3C7; color: #92400E; }
-.tag-remote { background: #E0E7FF; color: #3730A3; }
-
 .empty-state {
     text-align: center;
     padding: 80px 20px;
@@ -144,9 +116,9 @@
         <h1>Application Tracker</h1>
         <p style="color: #6B7280; margin-top: 8px;">Monitor and manage your job applications</p>
         
-        <div class="stats" id="stats">
+        <div class="stats">
             <div class="stat-card">
-                <div class="number" id="total-count">0</div>
+                <div class="number">{{jobs.length}}</div>
                 <div class="label">Total</div>
             </div>
             <div class="stat-card">
@@ -167,9 +139,9 @@
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
                 <div>
                     <h3 style="font-size: 15px; margin-bottom: 4px;">Email Integration</h3>
-                    <p style="font-size: 13px; color: #6B7280;" id="gmail-status">Auto-update statuses from Gmail responses</p>
+                    <p style="font-size: 13px; color: #6B7280;">Auto-update statuses from Gmail responses</p>
                 </div>
-                <a href="/connect-gmail" class="btn" id="gmail-btn">Connect Gmail</a>
+                <a href="/auth/google" class="btn">Connect Gmail</a>
             </div>
         </div>
     </div>
@@ -177,196 +149,198 @@
 
 <div class="container">
     <div class="tabs">
-        <button class="tab active" onclick="filterByStatus('all')">All</button>
-        <button class="tab" onclick="filterByStatus('saved')">Saved</button>
-        <button class="tab" onclick="filterByStatus('applied')">Applied</button>
-        <button class="tab" onclick="filterByStatus('interviewing')">Interviewing</button>
-        <button class="tab" onclick="filterByStatus('offered')">Offered</button>
-        <button class="tab" onclick="filterByStatus('rejected')">Rejected</button>
+        <button class="tab active" data-status="all">All</button>
+        <button class="tab" data-status="saved">Saved</button>
+        <button class="tab" data-status="applied">Applied</button>
+        <button class="tab" data-status="interviewing">Interviewing</button>
+        <button class="tab" data-status="offer">Offered</button>
+        <button class="tab" data-status="rejected">Rejected</button>
     </div>
     
     <div id="applications-container">
-        <div style="text-align: center; padding: 40px;">
-            <p style="color: #9CA3AF;">Loading applications...</p>
-        </div>
-    </div>
-</div>
-
-<script>
-let currentStatusFilter = 'all';
-let allApplications = [];
-
-function loadApplications() {
-    console.log('=== LOADING APPLICATIONS ===');
-    try {
-        const data = localStorage.getItem('jobApplications');
-        console.log('Raw data from localStorage:', data);
-        
-        if (!data || data === 'null' || data === 'undefined') {
-            console.log('No applications in localStorage');
-            allApplications = [];
-        } else {
-            const appsObj = JSON.parse(data);
-            console.log('Parsed object:', appsObj);
-            allApplications = Object.values(appsObj);
-            console.log('Applications array:', allApplications);
-        }
-        
-        updateStats();
-        displayApplications();
-        
-    } catch (err) {
-        console.error('=== ERROR LOADING ===');
-        console.error('Error:', err);
-        document.getElementById('applications-container').innerHTML = `
-            <div class="empty-state">
-                <p style="color: #EF4444; margin-bottom: 16px;">Error loading applications</p>
-                <p style="font-size: 14px; color: #6B7280; margin-bottom: 16px;">Try opening browser console (F12) for details</p>
-                <button class="btn" onclick="location.reload()">Refresh Page</button>
-            </div>
-        `;
-    }
-}
-
-function updateStats() {
-    document.getElementById('total-count').textContent = allApplications.length;
-    document.getElementById('saved-count').textContent = allApplications.filter(a => a.status === 'saved').length;
-    document.getElementById('applied-count').textContent = allApplications.filter(a => ['applied', 'interviewing', 'offered', 'rejected'].includes(a.status)).length;
-    document.getElementById('response-count').textContent = allApplications.filter(a => a.response && a.response !== 'pending' && a.response !== 'no-decision').length;
-}
-
-function filterByStatus(status) {
-    currentStatusFilter = status;
-    document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-    event.target.classList.add('active');
-    displayApplications();
-}
-
-function displayApplications() {
-    const container = document.getElementById('applications-container');
-    
-    let filtered = allApplications;
-    
-    if (currentStatusFilter !== 'all') {
-        filtered = filtered.filter(app => app.status === currentStatusFilter);
-    }
-    
-    filtered.sort((a, b) => new Date(b.dateAdded) - new Date(a.dateAdded));
-    
-    if (filtered.length === 0) {
-        const message = currentStatusFilter === 'all' 
-            ? 'No applications found'
-            : `No ${currentStatusFilter} applications`;
-        
-        container.innerHTML = `
-            <div class="empty-state">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                          d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                </svg>
-                <h3>${message}</h3>
-                <p style="color: #6B7280; margin: 12px 0 24px;">Start tracking by searching for jobs</p>
-                <a href="/" class="btn">Search Jobs</a>
-            </div>
-        `;
-        return;
-    }
-    
-    let html = '';
-    filtered.forEach(app => {
-        const date = new Date(app.dateAdded).toLocaleDateString('en-US', { 
-            month: 'short', 
-            day: 'numeric', 
-            year: 'numeric' 
-        });
-        
-        const filters = app.filters || {};
-        
-        html += `
-            <div class="app-card status-${app.status}">
+        {{#if jobs.length}}
+            {{#each jobs}}
+            <div class="app-card" data-status="{{this.status}}">
                 <div style="display: flex; justify-content: space-between; gap: 24px; flex-wrap: wrap;">
                     <div style="flex: 1; min-width: 250px;">
-                        <h3>${app.title}</h3>
-                        <p style="color: #6B7280; margin: 6px 0; font-size: 15px;">${app.company}</p>
-                        <p style="color: #9CA3AF; font-size: 13px; margin-top: 8px;">Added ${date}</p>
-                        
-                        ${filters.jobType || filters.workLocation || filters.usAuth ? `
-                        <div class="job-tags">
-                            ${filters.jobType ? `<span class="tag tag-${filters.jobType}">${filters.jobType.replace('-', ' ')}</span>` : ''}
-                            ${filters.workLocation ? `<span class="tag tag-${filters.workLocation}">${filters.workLocation}</span>` : ''}
-                            ${filters.usAuth === 'opt' ? `<span class="tag tag-opt">OPT</span>` : ''}
-                            ${filters.usAuth === 'citizen' ? `<span class="tag">Citizen/GC</span>` : ''}
-                            ${filters.usAuth === 'cpt' ? `<span class="tag">CPT</span>` : ''}
-                            ${filters.internshipType ? `<span class="tag">${filters.internshipType}</span>` : ''}
-                            ${filters.compensation === 'paid' ? `<span class="tag tag-fulltime">Paid</span>` : ''}
-                            ${filters.compensation === 'unpaid' ? `<span class="tag">Unpaid</span>` : ''}
+                        <h3>{{this.title}}</h3>
+                        <p style="color: #6B7280; margin: 6px 0; font-size: 15px;">{{this.company}}</p>
+                        <p style="color: #9CA3AF; font-size: 13px; margin-top: 8px;">
+                            Added {{formatDate this.dateAdded}}
+                        </p>
+                        <div style="margin-top: 12px;">
+                            <span class="status-badge status-{{this.status}}">{{this.status}}</span>
                         </div>
-                        ` : ''}
                     </div>
                     
                     <div style="display: flex; flex-direction: column; gap: 12px; min-width: 220px;">
                         <div>
                             <label style="display: block; font-size: 12px; color: #6B7280; margin-bottom: 6px; font-weight: 500;">Status</label>
-                            <select class="status-select" onchange="updateStatus('${app.id}', this.value, '${app.response}')">
-                                <option value="saved" ${app.status === 'saved' ? 'selected' : ''}>Saved for Later</option>
-                                <option value="applied" ${app.status === 'applied' ? 'selected' : ''}>Applied</option>
-                                <option value="interviewing" ${app.status === 'interviewing' ? 'selected' : ''}>Interviewing</option>
-                                <option value="offered" ${app.status === 'offered' ? 'selected' : ''}>Offered</option>
-                                <option value="rejected" ${app.status === 'rejected' ? 'selected' : ''}>Rejected</option>
-                            </select>
-                        </div>
-                        
-                        <div>
-                            <label style="display: block; font-size: 12px; color: #6B7280; margin-bottom: 6px; font-weight: 500;">Response</label>
-                            <select class="response-select" onchange="updateStatus('${app.id}', '${app.status}', this.value)">
-                                <option value="pending" ${app.response === 'pending' ? 'selected' : ''}>Pending</option>
-                                <option value="no-decision" ${app.response === 'no-decision' ? 'selected' : ''}>No Decision Yet</option>
-                                <option value="positive" ${app.response === 'positive' ? 'selected' : ''}>Positive</option>
-                                <option value="negative" ${app.response === 'negative' ? 'selected' : ''}>Negative</option>
+                            <select class="status-select" data-job-id="{{this._id}}" style="width: 100%; padding: 8px 12px; border: 1px solid #E5E7EB; border-radius: 8px; font-size: 13px;">
+                                <option value="saved" {{#if (eq this.status "saved")}}selected{{/if}}>Saved for Later</option>
+                                <option value="applied" {{#if (eq this.status "applied")}}selected{{/if}}>Applied</option>
+                                <option value="interviewing" {{#if (eq this.status "interviewing")}}selected{{/if}}>Interviewing</option>
+                                <option value="offer" {{#if (eq this.status "offer")}}selected{{/if}}>Offered</option>
+                                <option value="rejected" {{#if (eq this.status "rejected")}}selected{{/if}}>Rejected</option>
                             </select>
                         </div>
                         
                         <div style="display: flex; gap: 8px; margin-top: 4px;">
-                            <a href="${app.link}" target="_blank" class="btn btn-secondary" style="flex: 1; text-align: center; padding: 10px; font-size: 13px;">View Job</a>
-                            <button onclick="deleteApplication('${app.id}')" class="btn btn-secondary" style="padding: 10px 14px; font-size: 13px;">Delete</button>
+                            <a href="{{this.link}}" target="_blank" class="btn btn-secondary" style="flex: 1; text-align: center; padding: 10px; font-size: 13px;">View Job</a>
+                            <button onclick="deleteJob('{{this._id}}')" class="btn btn-secondary" style="padding: 10px 14px; font-size: 13px;">Delete</button>
                         </div>
                     </div>
                 </div>
             </div>
-        `;
-    });
-    
-    container.innerHTML = html;
-}
+            {{/each}}
+        {{else}}
+        <div class="empty-state">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                      d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+            <h3>No applications found</h3>
+            <p style="color: #6B7280; margin: 12px 0 24px;">Start tracking by searching for jobs and clicking "Save for Later"</p>
+            <a href="/" class="btn">Search Jobs</a>
+        </div>
+        {{/if}}
+    </div>
+</div>
 
-function updateStatus(jobId, newStatus, newResponse) {
+<script>
+// Calculate stats on page load
+document.addEventListener('DOMContentLoaded', () => {
+    const allJobs = document.querySelectorAll('.app-card');
+    const savedCount = document.querySelectorAll('[data-status="saved"]').length;
+    const appliedCount = document.querySelectorAll('[data-status="applied"], [data-status="interviewing"], [data-status="offer"], [data-status="rejected"]').length;
+    
+    document.getElementById('saved-count').textContent = savedCount;
+    document.getElementById('applied-count').textContent = appliedCount;
+    document.getElementById('response-count').textContent = 0; // You can track responses later
+});
+
+// Tab filtering
+document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', function() {
+        const status = this.getAttribute('data-status');
+        
+        // Update active tab
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        this.classList.add('active');
+        
+        // Filter jobs
+        const allCards = document.querySelectorAll('.app-card');
+        allCards.forEach(card => {
+            if (status === 'all') {
+                card.style.display = 'block';
+            } else {
+                card.style.display = card.getAttribute('data-status') === status ? 'block' : 'none';
+            }
+        });
+    });
+});
+
+// Status update
+document.querySelectorAll('.status-select').forEach(select => {
+    select.addEventListener('change', async function() {
+        const jobId = this.getAttribute('data-job-id');
+        const newStatus = this.value;
+        
+        try {
+            const response = await fetch(`/api/jobs/${jobId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: newStatus })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // Update the card's data-status
+                const card = this.closest('.app-card');
+                card.setAttribute('data-status', newStatus);
+                
+                // Update the badge
+                const badge = card.querySelector('.status-badge');
+                badge.className = `status-badge status-${newStatus}`;
+                badge.textContent = newStatus;
+                
+                showNotification('✓ Status updated!');
+                
+                // Refresh page to update stats
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                throw new Error(data.error || 'Failed to update');
+            }
+        } catch (err) {
+            console.error('Error updating status:', err);
+            showNotification('❌ Failed to update status');
+            // Revert the select
+            this.value = card.getAttribute('data-status');
+        }
+    });
+});
+
+// Delete job
+async function deleteJob(jobId) {
+    if (!confirm('Remove this application from tracker?')) return;
+    
     try {
-        const applications = JSON.parse(localStorage.getItem('jobApplications') || '{}');
-        if (applications[jobId]) {
-            applications[jobId].status = newStatus;
-            applications[jobId].response = newResponse;
-            localStorage.setItem('jobApplications', JSON.stringify(applications));
-            loadApplications();
+        const response = await fetch(`/api/jobs/${jobId}`, {
+            method: 'DELETE'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showNotification('✓ Job removed');
+            setTimeout(() => location.reload(), 500);
+        } else {
+            throw new Error(data.error || 'Failed to delete');
         }
     } catch (err) {
-        console.error('Error updating status:', err);
-        alert('Error updating status. Please try again.');
+        console.error('Error deleting job:', err);
+        showNotification('❌ Failed to delete job');
     }
 }
 
-function deleteApplication(jobId) {
-    if (confirm('Remove this application from tracker?')) {
-        try {
-            const applications = JSON.parse(localStorage.getItem('jobApplications') || '{}');
-            delete applications[jobId];
-            localStorage.setItem('jobApplications', JSON.stringify(applications));
-            loadApplications();
-        } catch (err) {
-            console.error('Error deleting application:', err);
-        }
-    }
+// Notification helper
+function showNotification(message) {
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        background: #111827;
+        color: white;
+        padding: 16px 24px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        z-index: 1001;
+        animation: slideIn 0.3s ease;
+    `;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.animation = 'slideOut 0.3s ease';
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
 }
 
-loadApplications();
-setInterval(loadApplications, 30000);
+// Add animation styles
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideIn {
+        from { transform: translateX(400px); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes slideOut {
+        from { transform: translateX(0); opacity: 1; }
+        to { transform: translateX(400px); opacity: 0; }
+    }
+`;
+document.head.appendChild(style);
 </script>

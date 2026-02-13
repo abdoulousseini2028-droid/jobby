@@ -89,7 +89,16 @@ app.engine('hbs', engine({
       if (text.length <= length) return text;
       return text.substring(0, length) + '...';
     },
-    eq: (a, b) => a === b
+    eq: (a, b) => a === b,
+    formatDate: (date) => {
+      if (!date) return '';
+      const d = new Date(date);
+      return d.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric', 
+        year: 'numeric' 
+      });
+    }
   }
 }));
 
