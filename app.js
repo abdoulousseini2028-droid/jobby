@@ -128,13 +128,13 @@ const NEGATIVE_KEYWORDS = [
 
 // ================= ROUTES =================
 
-// Home
-app.get('/', (req, res) => {
-  res.render('search', { isSearch: true });
-});
-
-// Login Page
+// Login Page - ONLY PUBLIC ROUTE
 app.get('/login', (req, res) => {
+  // If already logged in, redirect to search
+  if (req.cookies.user) {
+    return res.redirect('/');
+  }
+  
   const authUrl = oauth2Client.generateAuthUrl({
     access_type: 'offline',
     scope: [
@@ -145,13 +145,7 @@ app.get('/login', (req, res) => {
   res.render('login', { authUrl });
 });
 
-// Logout
-app.get('/logout', (req, res) => {
-  res.clearCookie('user');
-  res.redirect('/');
-});
-
-// Google OAuth Callback
+// Google OAuth Callback - PUBLIC
 app.get('/auth/google/callback', async (req, res) => {
   try {
     const { code } = req.query;
@@ -195,7 +189,7 @@ app.get('/auth/google/callback', async (req, res) => {
       maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
     });
 
-    res.redirect('/tracker');
+    res.redirect('/');
 
   } catch (error) {
     console.error('OAuth callback error:', error);
@@ -203,8 +197,21 @@ app.get('/auth/google/callback', async (req, res) => {
   }
 });
 
-// Job Search
-app.get('/search', async (req, res) => {
+// Logout
+app.get('/logout', (req, res) => {
+  res.clearCookie('user');
+  res.redirect('/login');
+});
+
+// ALL OTHER ROUTES REQUIRE AUTHENTICATION
+
+// Home - PROTECTED
+app.get('/', requireAuth, (req, res) => {
+  res.render('search', { isSearch: true });
+});
+
+// Job Search - PROTECTED
+app.get('/search', requireAuth, async (req, res) => {
   const { q, l, employment_type, remote_jobs_only, job_requirements, date_posted } = req.query;
 
   if (!q) return res.redirect('/');
@@ -255,7 +262,7 @@ app.get('/search', async (req, res) => {
   }
 });
 
-// GET Tracker Page - PROTECTED ROUTE, USER-SPECIFIC
+// Tracker Page - PROTECTED
 app.get('/tracker', requireAuth, async (req, res) => {
   try {
     await connectDB();
@@ -277,7 +284,7 @@ app.get('/tracker', requireAuth, async (req, res) => {
   }
 });
 
-// POST - Save a Job - PROTECTED ROUTE, USER-SPECIFIC
+// Save Job - PROTECTED
 app.post('/api/jobs', requireAuth, async (req, res) => {
   try {
     console.log('=== SAVE JOB REQUEST ===');
@@ -294,7 +301,7 @@ app.post('/api/jobs', requireAuth, async (req, res) => {
     
     if (!exists) {
       const newJob = await Job.create({
-        userId: req.user.id, // Link to user!
+        userId: req.user.id,
         jobId: req.body.jobId,
         title: req.body.title,
         company: req.body.company,
@@ -318,7 +325,7 @@ app.post('/api/jobs', requireAuth, async (req, res) => {
   }
 });
 
-// Check Auth Status (for frontend)
+// Check Auth Status
 app.get('/api/auth-status', (req, res) => {
   const userCookie = req.cookies.user;
   if (userCookie) {
@@ -333,13 +340,13 @@ app.get('/api/auth-status', (req, res) => {
   }
 });
 
-// Gmail Status
-app.get('/api/gmail-status', (req, res) => {
+// Gmail Status - PROTECTED
+app.get('/api/gmail-status', requireAuth, (req, res) => {
   const tokens = req.cookies.gmail_tokens;
   res.json({ connected: !!tokens });
 });
 
-// Manual Email Check
+// Email Check - PROTECTED
 app.get('/api/check-emails', requireAuth, async (req, res) => {
   try {
     const tokenCookie = req.cookies.gmail_tokens;

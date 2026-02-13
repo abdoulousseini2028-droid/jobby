@@ -179,10 +179,22 @@
         
         <div class="job-meta">
             {{#if this.job_city}}
-            <span>📍 {{this.job_city}}{{#if this.job_state}}, {{this.job_state}}{{/if}}</span>
+            <span>
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M7 13A6 6 0 1 0 7 1a6 6 0 0 0 0 12z"/>
+                    <path d="M7 9a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/>
+                </svg>
+                {{this.job_city}}{{#if this.job_state}}, {{this.job_state}}{{/if}}
+            </span>
             {{/if}}
             {{#if this.job_employment_type}}
-            <span>💼 {{this.job_employment_type}}</span>
+            <span>
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="2" y="3" width="10" height="9" rx="1"/>
+                    <path d="M6 3V1m2 2V1"/>
+                </svg>
+                {{this.job_employment_type}}
+            </span>
             {{/if}}
             {{#if this.job_is_remote}}
             <span class="badge badge-remote">Remote</span>

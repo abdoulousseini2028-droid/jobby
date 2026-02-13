@@ -142,28 +142,26 @@
     </style>
 </head>
 <body>
+    {{#if user}}
     <nav class="navbar">
         <div class="navbar-content">
-            <a href="/" class="logo"> Jobby</a>
+            <a href="/" class="logo">Jobby</a>
             
             <div class="nav-links">
                 <a href="/" {{#if isSearch}}class="active"{{/if}}>Search</a>
                 <a href="/tracker" {{#if isTracker}}class="active"{{/if}}>Tracker</a>
                 
-                {{#if user}}
-                    <div class="user-info">
-                        {{#if user.picture}}
-                            <img src="{{user.picture}}" alt="{{user.name}}" class="user-avatar">
-                        {{/if}}
-                        <span class="user-name">{{user.name}}</span>
-                        <a href="/logout" class="btn btn-logout">Sign Out</a>
-                    </div>
-                {{else}}
-                    <a href="/login" class="btn">Sign In</a>
-                {{/if}}
+                <div class="user-info">
+                    {{#if user.picture}}
+                        <img src="{{user.picture}}" alt="{{user.name}}" class="user-avatar">
+                    {{/if}}
+                    <span class="user-name">{{user.name}}</span>
+                    <a href="/logout" class="btn btn-logout">Sign Out</a>
+                </div>
             </div>
         </div>
     </nav>
+    {{/if}}
 
     {{{body}}}
 </body>
